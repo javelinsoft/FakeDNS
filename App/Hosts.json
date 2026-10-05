@@ -1,0 +1,10 @@
+[
+  {
+    "host": "google.com",
+    "subdomains": [
+      "ogads-pa.clients6.google.com",
+      "csp.withgoogle.com",
+      "play.google.com"
+    ]
+  }
+]
