@@ -10,6 +10,7 @@ for their addresses.
 > lookups from your network or your ISP.
 
 ---
+<img width="1920" height="976" alt="Fake" src="https://github.com/user-attachments/assets/1e2154ad-37ca-4363-945f-b3d417b00c34" />
 
 ## Features
 
