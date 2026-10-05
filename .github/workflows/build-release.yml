@@ -1,0 +1,78 @@
+name: Build release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (created if it does not exist)"
+        required: true
+        default: "v1.0"
+        type: string
+      create_release:
+        description: "Publish a GitHub release (untick to only build a downloadable artifact)"
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: "Mark the release as a pre-release"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust (stable, MSVC)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package
+        shell: pwsh
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          $name = "FakeDNS-$env:TAG-windows-x64"
+          New-Item -ItemType Directory -Path "dist/$name" -Force | Out-Null
+          Copy-Item "target/release/FakeDNS.exe" "dist/$name/"
+          Copy-Item "App" "dist/$name/App" -Recurse
+          Copy-Item "README.md" "dist/$name/"
+          Compress-Archive -Path "dist/$name/*" -DestinationPath "dist/$name.zip"
+          $hash = (Get-FileHash "dist/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File -FilePath "dist/$name.zip.sha256" -Encoding ascii
+          "ZIP_NAME=$name.zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: |
+            dist/${{ env.ZIP_NAME }}
+            dist/${{ env.ZIP_NAME }}.sha256
+
+      - name: Create GitHub release
+        if: ${{ inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: FakeDNS ${{ inputs.tag }}
+          prerelease: ${{ inputs.prerelease }}
+          body: |
+            FakeDNS ${{ inputs.tag }} for Windows (x64).
+
+            Unzip, keep `FakeDNS.exe` and the `App` folder together, and run `FakeDNS.exe`.
+            See README.md for usage.
+          files: |
+            dist/${{ env.ZIP_NAME }}
+            dist/${{ env.ZIP_NAME }}.sha256
